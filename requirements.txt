@@ -1,0 +1,11 @@
+gradio>=4.0
+ultralytics>=8.3
+torch>=2.1
+torchvision>=0.16
+# On a GPU server, `pip install -r requirements.txt` pulls the default CUDA
+# wheels for torch/torchvision — that's what you want for testing.
+#
+# NOTE for the local Raspberry Pi authoring box only (CPU, aarch64): do NOT use
+# this file as-is. The default aarch64 torch>=2.12 wheels are CUDA builds whose
+# ops SIGILL on the Pi. Use system torch 2.11.0+cpu + torchvision 0.26.0+cpu
+# from https://download.pytorch.org/whl/cpu instead. See CLAUDE.md.

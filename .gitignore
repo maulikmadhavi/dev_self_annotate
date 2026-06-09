@@ -1,0 +1,14 @@
+.venv/
+.venv-win/
+__pycache__/
+*.pt
+*.onnx
+*.ts
+flagged/
+bus.jpg
+zidane.jpg
+# batch-mode output (generated label sets)
+annotations_out/
+# pixi environments
+.pixi/*
+!.pixi/config.toml

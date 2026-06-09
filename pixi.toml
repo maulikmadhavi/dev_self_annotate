@@ -1,0 +1,23 @@
+[workspace]
+authors = ["maulikmadhavi <maulikmadhavi@gmail.com>"]
+channels = ["conda-forge"]
+name = "self_annotate"
+platforms = ["win-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "==3.12"
+pip = ">=26.1.2,<27"
+
+[pypi-dependencies]
+tqdm = ">=4.68.2, <5"
+ultralytics = ">=8.4.62, <9"
+# --- PyTorch (CUDA 12.8 wheels) ---
+torch       = { version = "==2.7.1+cu128",  index = "https://download.pytorch.org/whl/cu128" }
+torchvision = { version = "==0.22.1+cu128", index = "https://download.pytorch.org/whl/cu128" }
+# torchaudio = { version = "==2.8.0+cu128", index = "https://download.pytorch.org/whl/cu128" }
+gradio = ">=6.17.3, <7"
+# Editable bounding-box component for the human-in-the-loop Review tab.
+gradio_image_annotation = ">=0.5.2, <0.6"
