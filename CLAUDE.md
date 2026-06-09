@@ -5,77 +5,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A Gradio UI for open-vocabulary auto-annotation of images, built on Ultralytics.
-Upload an image, type free-text keywords (the open vocabulary), pick a model and
-a confidence threshold, and get back an annotated image plus a table of
-detections. Goal: bootstrap image annotation with state-of-the-art
-open-vocabulary detection/recognition/segmentation models.
+Upload an image (or a folder of them), type free-text keywords (the open
+vocabulary), pick a model and a confidence threshold, and get back annotated
+images plus a training-ready label set.
 
-`app.py` is the whole application; `Readme.md` holds the original project intent.
+**Agenda:** build an interactive **MLOps cycle** that begins with
+open-vocabulary object detection. Rather than labelling from scratch, the tool
+pre-labels images from free-text keywords, lets a human correct the results, and
+exports a dataset that can train/fine-tune a model — which then feeds back in to
+improve the next round of auto-labelling.
 
-## Environments
+`app.py` is the whole application; `Readme.md` holds the project intent and roadmap.
 
-- **Raspberry Pi (linux/aarch64, CPU-only)** — authoring only; quick smoke
-  tests, not real model testing. (The original `.venv` here is the Pi's ARM
-  venv and will not run on Windows.)
-- **Windows box (win32, NVIDIA RTX 5070 / Blackwell)** — a real GPU test target,
-  managed by **pixi** (`pixi.toml`); see the Windows section below. Verified
-  working end-to-end (both models, GPU inference, Gradio HTTP 200).
-- **A separate GPU server** is where the app is also deployed/tested. Keep the
-  code portable: don't bake in environment-specific assumptions.
+## The annotation cycle
+
+```
+keywords → batch auto-label → human review/correct → export YOLO dataset → (train) → repeat
+```
+
+The three UI tabs cover the first stages of this loop:
+
+- **Single image** — try a vocabulary on one image.
+- **Batch** — auto-label a whole folder into a YOLO-format dataset.
+- **Review** — human-in-the-loop correction of those labels.
 
 ## Running
-
-On the GPU server (and any normal CUDA/x86 host):
 
 ```bash
 pip install -r requirements.txt
 python app.py        # binds 0.0.0.0:7860 by default; override with APP_HOST/APP_PORT
 ```
 
-`app.py` launches on `0.0.0.0` so the UI is reachable remotely. Model weights
-download on first use into the working directory (gitignored).
-
-On this Pi, use the project venv (created with `--system-site-packages` so it
-reuses the system PyTorch), and mind the gotchas below:
+The env is also managed by **pixi** (`pixi.toml`, pinned CUDA wheels for a
+reproducible GPU install):
 
 ```bash
-.venv/bin/python app.py
-```
-
-## Pi-only environment gotchas
-
-These apply to the local CPU box only; the GPU server uses the plain
-`requirements.txt` install above.
-
-- **`/tmp` is a 1.9G tmpfs.** pip builds there by default and runs out of space.
-  Install with `TMPDIR=/home/maulik/self_annotate/.venv/tmp` pointing at disk.
-- **Do not let pip upgrade torch/torchvision on the Pi.** The default
-  linux-aarch64 wheels for torch ≥2.12 are CUDA builds (`+cu130`) whose compiled
-  ops (e.g. `torchvision::nms`) SIGILL ("Illegal instruction") on the Pi CPU. The
-  working CPU stack is system **torch 2.11.0+cpu** plus **torchvision
-  0.26.0+cpu** from `https://download.pytorch.org/whl/cpu` (ABI must match torch
-  exactly — a piwheels torchvision fails to register `torchvision::nms`).
-
-## Windows GPU box (pixi)
-
-The Windows env is managed by **pixi** (`pixi.toml`): Python 3.12, torch
-2.7.1+cu128 / torchvision 0.22.1+cu128 (from the cu128 index), gradio,
-ultralytics. Run it with:
-
-```powershell
 pixi run python app.py
 ```
 
-The old `.venv` (Pi/ARM) and `.venv-win` (a manual pre-pixi attempt) are
-obsolete and gitignored — don't use them.
-
-- **Blackwell needs cu128.** The RTX 5070 is sm_120; a plain `pip install torch`
-  can hand you a CUDA build that won't run on it. pixi.toml pins the cu128 wheels
-  explicitly via the PyTorch cu128 index — keep it that way.
-- **The parent `D:\dev_repos\.git` is a broken WSL symlink** (reparse tag
-  `0xa000001d`). Ultralytics walks parent dirs for a `.git` and crashes on
-  import with `OSError WinError 1920`. Fix: this project has its own real `.git`
-  (`git init`) so the walk stops here. Don't delete the parent symlink.
+`app.py` launches on `0.0.0.0` so the UI is reachable when deployed remotely.
+Model weights download on first use into the working directory (gitignored).
+Keep the pinned wheels in `pixi.toml` as-is — a plain `pip install torch` can
+pull a CUDA build that won't run on newer GPUs.
 
 ## Code notes
 
@@ -116,8 +87,8 @@ class id matches the vocabulary order), `classes.txt`, `data.yaml`,
 The **Review** tab (`review_load`/`review_nav`/`review_save`) is the
 human-in-the-loop step. It points at the images folder + a batch `output_dir`,
 loads each image's YOLO label as editable boxes via the `gradio_image_annotation`
-`image_annotator` component (a pixi dep), and writes corrections back to the
-`.txt`. `_yolo_to_boxes`/`_boxes_to_yolo` convert between normalized YOLO and
+`image_annotator` component, and writes corrections back to the `.txt`.
+`_yolo_to_boxes`/`_boxes_to_yolo` convert between normalized YOLO and
 absolute-pixel boxes; the annotator only does **boxes**, so saving a reviewed
 segmentation set collapses polygons to their bounding box. Per-class colors come
 from `PALETTE`.
