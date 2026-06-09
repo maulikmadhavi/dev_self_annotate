@@ -51,14 +51,14 @@ words without any task-specific training.
 **With pixi (Windows / NVIDIA, recommended):**
 
 ```powershell
-pixi run python app.py
+pixi run python gradio_app.py
 ```
 
 **With pip (Linux / any CUDA host):**
 
 ```bash
 pip install -r requirements.txt
-python app.py
+python gradio_app.py
 ```
 
 The UI binds to `0.0.0.0:7860` so it is reachable when deployed on a remote GPU

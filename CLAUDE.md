@@ -15,7 +15,9 @@ pre-labels images from free-text keywords, lets a human correct the results, and
 exports a dataset that can train/fine-tune a model — which then feeds back in to
 improve the next round of auto-labelling.
 
-`app.py` is the whole application; `Readme.md` holds the project intent and roadmap.
+`gradio_app.py` is the Gradio UI — the whole app today; `Readme.md` holds the
+project intent and roadmap. A Flask front end (`flask_app.py`) is planned as an
+alternative entry point over the same model/annotation functions.
 
 ## The annotation cycle
 
@@ -33,17 +35,17 @@ The three UI tabs cover the first stages of this loop:
 
 ```bash
 pip install -r requirements.txt
-python app.py        # binds 0.0.0.0:7860 by default; override with APP_HOST/APP_PORT
+python gradio_app.py  # binds 0.0.0.0:7860 by default; override with APP_HOST/APP_PORT
 ```
 
 The env is also managed by **pixi** (`pixi.toml`, pinned CUDA wheels for a
 reproducible GPU install):
 
 ```bash
-pixi run python app.py
+pixi run python gradio_app.py
 ```
 
-`app.py` launches on `0.0.0.0` so the UI is reachable when deployed remotely.
+`gradio_app.py` launches on `0.0.0.0` so the UI is reachable when deployed remotely.
 Model weights download on first use into the working directory (gitignored).
 Keep the pinned wheels in `pixi.toml` as-is — a plain `pip install torch` can
 pull a CUDA build that won't run on newer GPUs.
@@ -51,7 +53,7 @@ pull a CUDA build that won't run on newer GPUs.
 ## Code notes
 
 The two models take their text vocabulary through different APIs — see
-`_set_vocabulary()` in `app.py`:
+`_set_vocabulary()` in `gradio_app.py`:
 - **yolov8x-worldv2** (YOLO-World, detection): `model.set_classes(names)`
 - **yoloe-26x-seg** (YOLOE, segmentation): needs prompt embeddings,
   `model.set_classes(names, model.get_text_pe(names))`. First use also triggers

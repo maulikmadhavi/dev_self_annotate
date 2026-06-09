@@ -22,7 +22,7 @@ from gradio_image_annotation import image_annotator
 from PIL import Image
 from ultralytics import YOLO
 
-# Run on GPU when available; falls back to CPU on the Pi/authoring box.
+# Run on GPU when available; falls back to CPU otherwise.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Image file types the batch scanner picks up (matched case-insensitively).
@@ -354,6 +354,20 @@ def review_nav(state, delta):
     return _review_value(state), state, _review_status(state)
 
 
+def review_clear(state):
+    """Remove all boxes on the current image (lets you redraw from scratch).
+
+    The annotator can only delete one selected box at a time; this is the
+    reliable 'delete everything' path. It does not write to disk — use Save to
+    persist the now-empty (or redrawn) set.
+    """
+    if not state:
+        return None, state, "Load a directory first."
+    path = Path(state["paths"][state["idx"]])
+    return ({"image": Image.open(path).convert("RGB"), "boxes": []}, state,
+            _review_status(state, "cleared boxes (not saved yet)"))
+
+
 def review_save(annotation, state, go_next: bool):
     """Write the edited boxes back to the current image's YOLO label file."""
     if not state:
@@ -467,10 +481,15 @@ def build_ui() -> gr.Blocks:
         with gr.Tab("Review"):
             gr.Markdown(
                 "Human-in-the-loop correction. Point at the **images** folder and "
-                "the **output** folder from a batch run, then step through and fix "
-                "boxes: drag/resize, double-click to relabel, `Del` to remove, draw "
-                "to add. **Save** writes the corrected boxes back to the YOLO "
-                "label file (in bbox format)."
+                "the **output** folder from a batch run, then **Load** and step "
+                "through the images.\n\n"
+                "Editing a box requires **Drag mode** (toolbar, or press `D`) — "
+                "in **Create mode** (`C`) clicks draw *new* boxes instead of "
+                "selecting existing ones. In Drag mode: click a box to select, "
+                "then drag/resize it, **double-click to relabel**, or use the "
+                "**Remove** button / `Del` to delete it. **Save** (or **Save + "
+                "Next**) writes the corrected boxes back to the YOLO label file "
+                "(bbox format)."
             )
             review_state = gr.State()
             with gr.Row():
@@ -483,11 +502,21 @@ def build_ui() -> gr.Blocks:
                 )
                 review_load_btn = gr.Button("Load", variant="primary")
             review_status_out = gr.Markdown()
+            # Fixed display height so images of different sizes don't resize the
+            # component and shuffle the buttons below it. Boxes stay in original
+            # image-pixel coordinates, so the fixed height doesn't affect saving.
+            # show_remove_button gives a visible delete (the bare component only
+            # deletes via the Del key); disable_edit_boxes=False keeps relabeling on.
             review_annotator = image_annotator(
-                label="Annotation", use_default_label=True,
+                label="Annotation",
+                use_default_label=True,
+                height=600,
+                show_remove_button=True,
+                disable_edit_boxes=False,
             )
             with gr.Row():
                 review_prev_btn = gr.Button("← Prev")
+                review_clear_btn = gr.Button("Clear boxes")
                 review_save_btn = gr.Button("Save", variant="primary")
                 review_savenext_btn = gr.Button("Save + Next →", variant="primary")
                 review_next_btn = gr.Button("Next →")
@@ -499,6 +528,10 @@ def build_ui() -> gr.Blocks:
             )
             review_prev_btn.click(
                 lambda s: review_nav(s, -1), inputs=[review_state],
+                outputs=[review_annotator, review_state, review_status_out],
+            )
+            review_clear_btn.click(
+                review_clear, inputs=[review_state],
                 outputs=[review_annotator, review_state, review_status_out],
             )
             review_next_btn.click(

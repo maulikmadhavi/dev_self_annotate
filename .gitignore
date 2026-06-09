@@ -229,5 +229,6 @@ __marimo__/
 # Gradio + batch/test outputs
 flagged/
 annotations_out/
+sample_images/
 bus.jpg
 zidane.jpg
